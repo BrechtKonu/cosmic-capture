@@ -1,0 +1,19 @@
+// Optional COSMIC keybindings for cosmic-capture.
+// Merge into ~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom
+// or create that file with this content if it doesn't exist.
+//
+// gtk-launch is used (instead of calling the binary directly) so the
+// process chain runs in a proper user session scope. cosmic-comp's
+// direct Spawn action puts children in a context where slurp's
+// wlr-layer-shell surface silently fails to render.
+{
+    (
+        modifiers: [Super, Shift],
+        key: "s",
+    ): Spawn("gtk-launch cosmic-capture"),
+    (
+        modifiers: [],
+        key: "Print",
+        description: Some("screencapture"),
+    ): Spawn("gtk-launch cosmic-capture"),
+}

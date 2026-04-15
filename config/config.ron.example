@@ -1,0 +1,27 @@
+// Cosmic Capture configuration.
+// Copy to ~/.config/cosmic-capture/config.ron and edit.
+//
+// Drive upload is optional: leave base_folder/screenshot_subfolder/
+// recording_subfolder empty to disable. Otherwise run `rclone config`
+// once, name the remote (the `remote` field below must match), and
+// captures will upload + copy a share link + open Drive after each save.
+(
+    screenshot_dir: "/home/YOU/Pictures/Screenshots",
+    record_dir:     "/home/YOU/Videos/Screenrecordings",
+    filename_template: "%Y-%m-%d_%H-%M-%S",
+    recorder: (
+        backend: "gpu-screen-recorder-flatpak", // or "gpu-screen-recorder" for native
+        codec:   "h264",                        // h264 | hevc | av1
+        fps:     60,
+        audio:   "default_output",              // or "none"
+    ),
+    overlay: (
+        close_on_escape: true,
+    ),
+    drive: (
+        remote: "gdrive",                 // rclone remote name; "" to disable upload
+        base_folder: "",                  // e.g. "Captures" — parent folder on Drive
+        screenshot_subfolder: "Screenshots",
+        recording_subfolder: "Screenrecordings",
+    ),
+)

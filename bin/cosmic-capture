@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Entry point for cosmic-capture. Reads config.ron, exports env vars,
+# routes to the stop-recording helper if a session is active, otherwise
+# shows the overlay.
+set -euo pipefail
+
+# When cosmic-comp spawns us via the Print Screen shortcut, it passes a
+# single-use XDG activation token. The overlay window consumes it, but the
+# stale token lingers in the env and poisons grandchildren (slurp etc.),
+# which silently fail to acquire focus. Drop the tokens up front.
+unset XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID
+
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/cosmic-capture/config.ron"
+HELPER_DIR="$HOME/.local/share/cosmic-capture"
+PID_FILE="${XDG_RUNTIME_DIR:-/tmp}/cosmic-capture.pid"
+
+# Minimal RON reader: matches  key: "value"  or  key: 60  at any indent.
+# Fine for our flat schema; does not handle arbitrary RON.
+ron_get() {
+    local key="$1"
+    sed -n -E "s/^[[:space:]]*${key}:[[:space:]]*\"?([^,\"]*)\"?,?[[:space:]]*$/\1/p" \
+        "$CONFIG" | head -n1
+}
+
+if [[ -f "$CONFIG" ]]; then
+    export COSMIC_CAPTURE_SCREENSHOT_DIR="$(ron_get screenshot_dir)"
+    export COSMIC_CAPTURE_RECORD_DIR="$(ron_get record_dir)"
+    export COSMIC_CAPTURE_FILENAME_TEMPLATE="$(ron_get filename_template)"
+    export COSMIC_CAPTURE_RECORDER_BACKEND="$(ron_get backend)"
+    export COSMIC_CAPTURE_RECORDER_CODEC="$(ron_get codec)"
+    export COSMIC_CAPTURE_RECORDER_FPS="$(ron_get fps)"
+    export COSMIC_CAPTURE_RECORDER_AUDIO="$(ron_get audio)"
+    export COSMIC_CAPTURE_DRIVE_REMOTE="$(ron_get remote)"
+    export COSMIC_CAPTURE_DRIVE_BASE="$(ron_get base_folder)"
+    export COSMIC_CAPTURE_DRIVE_SCREENSHOT_SUB="$(ron_get screenshot_subfolder)"
+    export COSMIC_CAPTURE_DRIVE_RECORDING_SUB="$(ron_get recording_subfolder)"
+fi
+
+# If a recording is in progress, Print Screen stops it directly — no overlay.
+if [[ -f "$PID_FILE" ]]; then
+    pid="$(head -n1 "$PID_FILE")"
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+        exec python3 "$HELPER_DIR/record.py"
+    fi
+    rm -f "$PID_FILE"
+fi
+
+# Clean up any stale slurp / helper processes from a prior aborted run.
+# A lingering slurp steals input from the new one, freezing the new overlay.
+pkill -x slurp 2>/dev/null || true
+pkill -f "$HELPER_DIR/screenshot.py" 2>/dev/null || true
+pkill -f "$HELPER_DIR/record.py" 2>/dev/null || true
+
+exec python3 "$HELPER_DIR/overlay.py"
