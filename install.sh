@@ -67,9 +67,23 @@ install -m 755 "$REPO_DIR/share/screenshot.py"          "$SHARE_DIR/screenshot.p
 install -m 755 "$REPO_DIR/share/record.py"              "$SHARE_DIR/record.py"
 install -m 755 "$REPO_DIR/share/recorder_hud.py"        "$SHARE_DIR/recorder_hud.py"
 install -m 755 "$REPO_DIR/share/sync_and_share.py"      "$SHARE_DIR/sync_and_share.py"
-install -m 644 "$REPO_DIR/applications/cosmic-capture.desktop" "$APPS_DIR/cosmic-capture.desktop"
+# Substitute the user's absolute binary path into Exec= so cosmic-comp's
+# Spawn context (which may not have ~/.local/bin on PATH) still finds us.
+sed "s|^Exec=.*|Exec=$BIN_DIR/cosmic-capture|" \
+    "$REPO_DIR/applications/cosmic-capture.desktop" \
+    > "$APPS_DIR/cosmic-capture.desktop"
+chmod 644 "$APPS_DIR/cosmic-capture.desktop"
 update-desktop-database "$APPS_DIR" 2>/dev/null || true
 ok "Files installed"
+
+# --- optional: satty (annotation) ----------------------------------------
+if ! command -v satty >/dev/null 2>&1; then
+    info "Optional: install 'satty' for screenshot annotation."
+    info "  cargo install satty   (or grab a release from"
+    info "  https://github.com/gabm/satty/releases)"
+else
+    ok "satty present (annotation enabled)"
+fi
 
 # --- config ---------------------------------------------------------------
 if [[ ! -f "$CONFIG_DIR/config.ron" ]]; then

@@ -2,7 +2,8 @@
 Type=Application
 Name=Cosmic Capture
 Comment=Screenshot or screen-record a region
-Exec=/home/brecht/.local/bin/cosmic-capture
+Exec=cosmic-capture
 Icon=camera-photo
 Terminal=false
 Categories=Utility;
+Keywords=screenshot;screencast;record;capture;

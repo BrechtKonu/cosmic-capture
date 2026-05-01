@@ -9,11 +9,23 @@
     screenshot_dir: "/home/YOU/Pictures/Screenshots",
     record_dir:     "/home/YOU/Videos/Screenrecordings",
     filename_template: "%Y-%m-%d_%H-%M-%S",
+
+    // Auto-copy the saved screenshot PNG to the Wayland clipboard.
+    clipboard: true,
+
+    // Initial selections in the overlay popup. Users can still flip these
+    // per-capture from the overlay.
+    default_mode:        "region",  // region | full
+    default_delay:       0,         // 0 | 3 | 5 (seconds)
+    default_record_mode: "region",  // region | screen
+    annotate_default:    false,     // open satty after each screenshot
+
     recorder: (
         backend: "gpu-screen-recorder-flatpak", // or "gpu-screen-recorder" for native
         codec:   "h264",                        // h264 | hevc | av1
         fps:     60,
         audio:   "default_output",              // or "none"
+        microphone: "none",                     // e.g. "default_input" to also capture mic
     ),
     overlay: (
         close_on_escape: true,

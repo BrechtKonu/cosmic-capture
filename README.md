@@ -12,9 +12,18 @@ selection, auto-save to configurable folders, and optional Drive sync.
 
 - **Unified overlay** (screenshot or record) launchable from dock, keyboard
   shortcut, or CLI
-- **Region selection** for both screenshots and recordings (slurp)
-- **Recording HUD**: floating timer + stop button while recording
-- **Auto-save** to configurable folders with timestamp filenames
+- **Capture modes**: region (slurp) or full output (cosmic-screenshot for
+  stills, xdg-desktop-portal for recordings)
+- **Countdown delay** for screenshots (0 / 3 / 5 s)
+- **Auto-copy to clipboard** — every screenshot lands in the Wayland clipboard
+  as `image/png`, ready to paste anywhere
+- **Annotation** via [`satty`](https://github.com/gabm/satty) — optional
+  per-capture; draw, highlight, blur, and save
+- **Recording HUD**: floating timer with file-size readout, plus pause/resume
+  and stop buttons
+- **Microphone capture** alongside system audio (configurable)
+- **Auto-save** to configurable folders with timestamp filenames; collisions
+  get an `_2`, `_3`, … suffix
 - **Optional Drive upload** via rclone — uploads, fetches a share link,
   copies it to clipboard, and opens Drive's share UI in the browser
 
@@ -22,8 +31,9 @@ selection, auto-save to configurable folders, and optional Drive sync.
 
 - Pop!_OS 22.04+ with COSMIC desktop
 - `slurp`, `cosmic-screenshot`, `python3-gi`, `gir1.2-gtk-4.0`, `gir1.2-adw-1`,
-  `libnotify-bin`, `python3-pil` (apt)
-- `rclone`, `wl-clipboard` — optional, for Drive sync
+  `libnotify-bin`, `python3-pil`, `wl-clipboard` (apt)
+- `satty` — optional, enables the annotation step
+- `rclone` — optional, for Drive sync
 - `gpu-screen-recorder` flatpak — installed **system-wide**
   (user installs are broken: the app hardcodes `/var/lib/flatpak` paths)
 
@@ -46,11 +56,19 @@ Edit `~/.config/cosmic-capture/config.ron`:
     screenshot_dir: "/home/YOU/Pictures/Screenshots",
     record_dir:     "/home/YOU/Videos/Screenrecordings",
     filename_template: "%Y-%m-%d_%H-%M-%S",
+
+    clipboard:           true,      // copy each screenshot to the clipboard
+    default_mode:        "region",  // region | full     (overlay default)
+    default_delay:       0,         // 0 | 3 | 5 seconds
+    default_record_mode: "region",  // region | screen
+    annotate_default:    false,     // open satty after each screenshot
+
     recorder: (
         backend: "gpu-screen-recorder-flatpak",
         codec:   "h264",
         fps:     60,
         audio:   "default_output",
+        microphone: "none",                   // "default_input" to also record mic
     ),
     overlay: ( close_on_escape: true ),
     drive: (
@@ -61,6 +79,16 @@ Edit `~/.config/cosmic-capture/config.ron`:
     ),
 )
 ```
+
+### Annotation (satty)
+
+If `satty` is on `$PATH` and you tick **Annotate** in the overlay (or set
+`annotate_default: true`), the screenshot opens in satty after capture. Save
+inside satty and the annotated PNG replaces the unannotated one on disk and
+in the clipboard.
+
+Install satty with `cargo install satty` or from the
+[releases page](https://github.com/gabm/satty/releases).
 
 ### Drive sync (optional)
 
