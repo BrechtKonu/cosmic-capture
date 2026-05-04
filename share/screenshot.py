@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Region screenshot for COSMIC.
+"""Region screenshot.
 
-COSMIC's compositor does not implement wlr-screencopy, so grim doesn't work.
-Flow: slurp picks a region, cosmic-screenshot (via xdg-desktop-portal-cosmic)
-captures the full screen to a temp file, PIL crops to the slurp geometry,
-and the result is saved to the configured screenshot directory.
+Flow: slurp picks a region, a desktop-appropriate backend (cosmic-screenshot,
+grim, gnome-screenshot, spectacle, maim) captures the full screen to a temp
+file, PIL crops to the slurp geometry, and the result is saved to the
+configured screenshot directory under a YYYYMM subfolder.
+
+The backend is auto-detected from XDG_CURRENT_DESKTOP and falls back to the
+first installed binary in BACKENDS. See _capture_backend.py.
 """
 import datetime as _dt
 import logging
@@ -15,6 +18,8 @@ import sys
 import tempfile
 
 from PIL import Image
+
+from _capture_backend import capture_fullscreen as _backend_capture
 
 LOG_PATH = "/tmp/cosmic-capture-screenshot.log"
 logging.basicConfig(
@@ -61,34 +66,21 @@ def pick_region() -> tuple[int, int, int, int] | None:
 
 
 def capture_fullscreen(dest_dir: str) -> str | None:
-    try:
-        r = subprocess.run(
-            [
-                "cosmic-screenshot",
-                "--interactive=false",
-                "--notify=false",
-                "--save-dir", dest_dir,
-            ],
-            capture_output=True,
-            text=True,
+    path = _backend_capture(dest_dir)
+    if not path:
+        notify(
+            "Screenshot failed",
+            "No capture backend available — install one of: "
+            "cosmic-screenshot, grim, gnome-screenshot, spectacle, maim",
         )
-    except FileNotFoundError:
-        notify("Screenshot failed", "cosmic-screenshot not installed")
-        return None
-    logging.info(
-        "cosmic-screenshot rc=%s stdout=%r stderr=%r",
-        r.returncode, r.stdout, r.stderr,
-    )
-    if r.returncode != 0:
-        notify("Screenshot failed", r.stderr.strip() or "capture exited non-zero")
-        return None
-    path = r.stdout.strip()
-    return path if os.path.exists(path) else None
+    return path
 
 
 def main() -> int:
-    save_dir = cfg("screenshot_dir") or os.path.expanduser("~/Pictures/Screenshots")
+    base_dir = cfg("screenshot_dir") or os.path.expanduser("~/Pictures/Screenshots")
     template = cfg("filename_template", "%Y-%m-%d_%H-%M-%S")
+    now = _dt.datetime.now()
+    save_dir = os.path.join(base_dir, now.strftime("%Y%m"))
     os.makedirs(save_dir, exist_ok=True)
     logging.info("screenshot start — save_dir=%s", save_dir)
 
@@ -102,7 +94,7 @@ def main() -> int:
         if not full:
             return 1
 
-        stamp = _dt.datetime.now().strftime(template)
+        stamp = now.strftime(template)
         out_path = os.path.join(save_dir, f"{stamp}.png")
 
         try:
@@ -114,14 +106,22 @@ def main() -> int:
             notify("Screenshot failed", f"crop error: {e}")
             return 1
 
-    notify("Screenshot saved", out_path)
+    try:
+        with open(out_path, "rb") as f:
+            subprocess.run(
+                ["wl-copy", "--type", "image/png"],
+                stdin=f, check=False,
+            )
+    except FileNotFoundError:
+        logging.warning("wl-copy not installed; clipboard skipped")
 
-    helper_dir = os.path.dirname(os.path.realpath(__file__))
     subprocess.Popen(
-        [sys.executable, os.path.join(helper_dir, "sync_and_share.py"),
-         "screenshot", out_path],
+        ["xdg-open", save_dir],
         start_new_session=True,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
+
+    notify("Screenshot saved", f"{out_path}\nCopied to clipboard")
     return 0
 
 
