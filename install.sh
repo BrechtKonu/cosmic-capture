@@ -13,6 +13,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="$HOME/.local/bin"
 SHARE_DIR="$HOME/.local/share/cosmic-capture"
 APPS_DIR="$HOME/.local/share/applications"
+ICONS_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/cosmic-capture"
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
@@ -69,6 +70,7 @@ print_apt_packages() {
     sudo apt install maim                  # X11 fallback
   Optional:
     sudo apt install wl-clipboard rclone   # clipboard image + Drive sync
+    sudo apt install ffmpeg                # required for Record on HiDPI / scaled monitors
 EOF
 }
 
@@ -84,6 +86,7 @@ print_dnf_packages() {
     sudo dnf install maim                  # X11 fallback
   Optional:
     sudo dnf install wl-clipboard rclone
+    sudo dnf install ffmpeg-free           # required for Record on HiDPI / scaled monitors
 EOF
 }
 
@@ -99,6 +102,7 @@ print_pacman_packages() {
     sudo pacman -S maim                    # X11 fallback
   Optional:
     sudo pacman -S wl-clipboard rclone
+    sudo pacman -S ffmpeg                  # required for Record on HiDPI / scaled monitors
 EOF
 }
 
@@ -114,6 +118,7 @@ print_zypper_packages() {
     sudo zypper install maim
   Optional:
     sudo zypper install wl-clipboard rclone
+    sudo zypper install ffmpeg             # required for Record on HiDPI / scaled monitors
 EOF
 }
 
@@ -123,7 +128,7 @@ print_generic_packages() {
     Required: slurp, python3 + GObject introspection (GTK 4, libadwaita 1),
               libnotify, Pillow / python3-pil
     Capture: one of cosmic-screenshot, grim, gnome-screenshot, spectacle, maim
-    Optional: wl-clipboard, rclone
+    Optional: wl-clipboard, rclone, ffmpeg (Record on HiDPI / scaled monitors)
 EOF
 }
 
@@ -212,7 +217,17 @@ install -m 755 "$REPO_DIR/share/record.py"              "$SHARE_DIR/record.py"
 install -m 755 "$REPO_DIR/share/recorder_hud.py"        "$SHARE_DIR/recorder_hud.py"
 install -m 755 "$REPO_DIR/share/sync_and_share.py"      "$SHARE_DIR/sync_and_share.py"
 install -m 644 "$REPO_DIR/applications/cosmic-capture.desktop" "$APPS_DIR/cosmic-capture.desktop"
+# Pin the absolute path of the installed binary into the .desktop file so it
+# works regardless of whether ~/.local/bin is on the user's PATH at launch.
+sed -i "s|^Exec=cosmic-capture$|Exec=$BIN_DIR/cosmic-capture|; \
+        s|^TryExec=cosmic-capture$|TryExec=$BIN_DIR/cosmic-capture|" \
+        "$APPS_DIR/cosmic-capture.desktop"
 update-desktop-database "$APPS_DIR" 2>/dev/null || true
+
+# Icon — install into hicolor theme so any compositor's launcher finds it.
+mkdir -p "$ICONS_DIR"
+install -m 644 "$REPO_DIR/share/icons/cosmic-capture.svg" "$ICONS_DIR/cosmic-capture.svg"
+gtk-update-icon-cache -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 ok "Files installed"
 
 # --- config ---------------------------------------------------------------

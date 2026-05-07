@@ -1,4 +1,15 @@
-# Cosmic Capture
+<div align="center">
+  <img src="share/icons/cosmic-capture.svg" alt="Cosmic Capture" width="128" height="128"/>
+  <h1>Cosmic Capture</h1>
+  <p><em>One keystroke. Screenshot, annotate, or record a region — Wayland-first, cross-desktop.</em></p>
+  <p>
+    <a href="https://github.com/BrechtKonu/cosmic-capture/actions"><img alt="status" src="https://img.shields.io/badge/status-active-2ea44f"></a>
+    <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue"></a>
+    <a href="#supported-desktops"><img alt="wayland" src="https://img.shields.io/badge/Wayland-first-7c3aed"></a>
+    <a href="#supported-desktops"><img alt="desktops" src="https://img.shields.io/badge/COSMIC%20%7C%20GNOME%20%7C%20KDE%20%7C%20Sway-supported-06b6d4"></a>
+    <a href="https://dinsdag.xyz"><img alt="author" src="https://img.shields.io/badge/by-dinsdag.xyz-111"></a>
+  </p>
+</div>
 
 A small Wayland-first screenshot, annotation, and screen-recording overlay
 for Linux. One keystroke opens a popup with three buttons — **Screenshot**,
@@ -7,8 +18,6 @@ year-month folder, and clipboard handoff.
 
 Originally built for Pop!_OS **COSMIC** (hence the name); now works on any
 desktop where one of the supported capture backends is installed.
-
-![overlay](docs/overlay.png) <!-- replace once you have a fresh shot -->
 
 ## Why
 
@@ -76,6 +85,7 @@ The installer:
 | `python3-pil` (Pillow)            | yes       | Cropping                                       |
 | `wl-clipboard` (`wl-copy`)        | recommended | Image-to-clipboard on save                   |
 | `gpu-screen-recorder` (flatpak)   | for Record | System-wide install only — see Quirks         |
+| `ffmpeg`                          | for Record on HiDPI | Crop step on fractionally-scaled monitors — see Quirks |
 | Satty                             | for Annotate | flatpak `org.satty.Satty`, cargo, or distro pkg |
 | `rclone`                          | optional  | Drive sync for recordings                      |
 
@@ -269,6 +279,14 @@ Tail these if something silently fails:
 - **Print Screen binding:** `gtk-launch cosmic-capture`, not the binary
   path — see Keyboard shortcut above.
 - **gpu-screen-recorder flatpak:** install `--system`, not `--user`.
+- **HiDPI / fractionally-scaled monitors (Record):** gpu-screen-recorder
+  5.12's `-w region` mode silently downscales the captured stream by the
+  inverse of the monitor's scale factor (a 150%-scaled monitor produces a
+  ¼-resolution video). Cosmic Capture works around this by capturing the
+  full monitor and cropping with `ffmpeg` after the recorder exits, so
+  install `ffmpeg` if you record on a non-100% display. Detection is via
+  `cosmic-randr list`; on non-COSMIC desktops the scale defaults to 1.0
+  and no crop is applied.
 - **Satty toolbar icons missing:** happens when your icon theme
   (e.g. COSMIC) doesn't inherit Adwaita's symbolic set. Fix: install
   Satty via flatpak — it ships its own runtime with the right icons.
@@ -295,6 +313,19 @@ PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Especially looking for:
 - A native Rust port of the popup (current GTK4/Python is fine but starts slow).
 - An option to skip the popup entirely (one-shot screenshot from a binding).
 
+## Author
+
+Built and maintained by **Brecht Soenen** — [dinsdag.xyz](https://dinsdag.xyz).
+Reach out: [`brecht@dinsdag.xyz`](mailto:brecht@dinsdag.xyz).
+
+If you find this useful, the friendliest things you can do are:
+
+- ⭐ Star the repo so others can find it.
+- 🐛 [File an issue](https://github.com/BrechtKonu/cosmic-capture/issues/new/choose) when something breaks — include your distro, desktop, and the relevant `/tmp/cosmic-capture-*.log`.
+- 🧪 Send a PR confirming it works on a desktop the matrix doesn't list yet.
+- 💬 Tell me how you use it — feedback shapes priorities.
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Use it, fork it, ship it; just keep the
+copyright notice.

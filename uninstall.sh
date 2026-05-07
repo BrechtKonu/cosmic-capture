@@ -9,13 +9,16 @@ if [[ "${1:-}" == "--purge" ]]; then PURGE=1; fi
 BIN_DIR="$HOME/.local/bin"
 SHARE_DIR="$HOME/.local/share/cosmic-capture"
 APPS_DIR="$HOME/.local/share/applications"
+ICONS_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/cosmic-capture"
 PID_FILE="${XDG_RUNTIME_DIR:-/tmp}/cosmic-capture.pid"
 
 rm -f "$BIN_DIR/cosmic-capture"
 rm -rf "$SHARE_DIR"
 rm -f "$APPS_DIR/cosmic-capture.desktop"
+rm -f "$ICONS_DIR/cosmic-capture.svg"
 update-desktop-database "$APPS_DIR" 2>/dev/null || true
+gtk-update-icon-cache -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 rm -f "$PID_FILE"
 
 if (( PURGE )); then

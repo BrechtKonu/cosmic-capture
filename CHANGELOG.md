@@ -1,6 +1,32 @@
 # Changelog
 
-## Unreleased — staging
+## Unreleased — main
+
+### Added
+- **Custom app icon** (`share/icons/cosmic-capture.svg`) — installed into
+  the user's `hicolor` theme by `install.sh` and referenced from the
+  desktop entry. Replaces the previous `camera-photo` system fallback.
+- Author / contact info in `LICENSE` and `README.md`
+  (Brecht Soenen, dinsdag.xyz).
+
+### Fixed
+- **Record on HiDPI / fractionally-scaled monitors.** gpu-screen-recorder
+  5.12's `-w region` mode silently downscales the captured stream by the
+  inverse of the monitor's scale factor (e.g. on a 150%-scaled display a
+  1000×600 selection produced a 250×150 video). `record.py` now detects
+  the picked monitor's scale via `cosmic-randr`; on scaled monitors it
+  captures the full monitor at correct physical resolution and crops to
+  the requested region with `ffmpeg` after the recorder exits. Unscaled
+  monitors keep the fast native path.
+- Desktop entry no longer hardcodes `/home/brecht/.local/bin/...`; the
+  installer pins `$HOME/.local/bin/cosmic-capture` per machine.
+
+### Changed
+- `cosmic-capture.desktop` adds `Keywords`, `GenericName`, broader
+  `Categories` (`Utility;Graphics;AudioVideo;Recorder`) and
+  `StartupNotify=true` so it surfaces in launcher search.
+
+## 0.2.0 — staging
 
 ### Added
 - **Annotate button** in the popup, powered by [Satty](https://github.com/Satty-org/Satty).
