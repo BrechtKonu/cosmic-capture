@@ -1,11 +1,13 @@
 # Changelog
 
-## Unreleased — main
+## 0.3.0 — 2026-05-08
 
 ### Added
-- **Custom app icon** (`share/icons/cosmic-capture.svg`) — installed into
-  the user's `hicolor` theme by `install.sh` and referenced from the
-  desktop entry. Replaces the previous `camera-photo` system fallback.
+- **Custom minimalist app icon** (`share/icons/cosmic-capture.svg`) —
+  indigo backdrop, four white viewfinder brackets, single red capture
+  dot. Installed into the user's `hicolor` theme by `install.sh` and
+  referenced from the desktop entry. Replaces the previous
+  `camera-photo` system fallback.
 - Author / contact info in `LICENSE` and `README.md`
   (Brecht Soenen, dinsdag.xyz).
 
