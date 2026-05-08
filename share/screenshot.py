@@ -43,6 +43,37 @@ def notify(summary: str, body: str = "") -> None:
     )
 
 
+def open_folder(path: str) -> None:
+    """Reveal `path` in the user's file manager, raising an existing
+    window at that location if one is already open.
+
+    Uses `org.freedesktop.FileManager1.ShowFolders` (Nautilus / cosmic-files /
+    Dolphin / Thunar all implement it). Falls back to `xdg-open`, which opens
+    a new window every time on most setups.
+    """
+    uri = "file://" + path
+    try:
+        r = subprocess.run(
+            ["gdbus", "call", "--session",
+             "--dest", "org.freedesktop.FileManager1",
+             "--object-path", "/org/freedesktop/FileManager1",
+             "--method", "org.freedesktop.FileManager1.ShowFolders",
+             f"['{uri}']", ""],
+            capture_output=True, text=True, timeout=3,
+        )
+        if r.returncode == 0:
+            return
+        logging.info("FileManager1 unavailable (%s); falling back to xdg-open",
+                     r.stderr.strip())
+    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        logging.info("FileManager1 call failed (%s); falling back to xdg-open", e)
+    subprocess.Popen(
+        ["xdg-open", path],
+        start_new_session=True,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
 def pick_region() -> tuple[int, int, int, int] | None:
     import time
     time.sleep(0.25)
@@ -115,12 +146,7 @@ def main() -> int:
     except FileNotFoundError:
         logging.warning("wl-copy not installed; clipboard skipped")
 
-    subprocess.Popen(
-        ["xdg-open", save_dir],
-        start_new_session=True,
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
-
+    open_folder(save_dir)
     notify("Screenshot saved", f"{out_path}\nCopied to clipboard")
     return 0
 

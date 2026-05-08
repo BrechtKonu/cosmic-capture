@@ -18,7 +18,7 @@ import tempfile
 
 from PIL import Image
 
-from screenshot import capture_fullscreen, cfg, notify, pick_region
+from screenshot import capture_fullscreen, cfg, notify, open_folder, pick_region
 
 
 def _satty_command() -> list[str] | None:
@@ -87,13 +87,19 @@ def main() -> int:
             )
             return 1
 
+        # Satty just writes the annotated PNG to disk; we'll handle the
+        # clipboard ourselves from the host below. We deliberately do NOT
+        # pass --copy-command here: flatpak Satty has no wl-copy in its
+        # sandbox and its only escape hatch (flatpak-spawn --host) requires
+        # a Flatpak-bus permission Satty doesn't ship with. Satty's built-in
+        # save-to-clipboard works inside the sandbox but the clipboard
+        # contents disappear the instant Satty exits, which is the bug we
+        # were just hitting.
         cmd = [
             *satty,
             "--filename", crop_path,
             "--output-filename", out_path,
-            "--copy-command", "wl-copy",
-            "--actions-on-enter", "save-to-file,save-to-clipboard,exit",
-            "--save-after-copy",
+            "--actions-on-enter", "save-to-file,exit",
             "--early-exit",
             "--initial-tool", "arrow",
         ]
@@ -105,11 +111,19 @@ def main() -> int:
         # User cancelled inside Satty without saving.
         return 0
 
-    subprocess.Popen(
-        ["xdg-open", save_dir],
-        start_new_session=True,
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
+    # Copy from the host so the clipboard survives Satty's exit. wl-copy
+    # daemonizes after reading stdin and serves clipboard requests until
+    # something else takes over — surviving us, Satty, and the popup tear-down.
+    try:
+        with open(out_path, "rb") as f:
+            subprocess.run(
+                ["wl-copy", "--type", "image/png"],
+                stdin=f, check=False,
+            )
+    except FileNotFoundError:
+        logging.warning("wl-copy not installed; clipboard skipped")
+
+    open_folder(save_dir)
     notify("Annotation saved", f"{out_path}\nCopied to clipboard")
     return 0
 
