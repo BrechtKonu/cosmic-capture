@@ -87,19 +87,31 @@ def main() -> int:
             )
             return 1
 
-        # Satty just writes the annotated PNG to disk; we'll handle the
-        # clipboard ourselves from the host below. We deliberately do NOT
-        # pass --copy-command here: flatpak Satty has no wl-copy in its
-        # sandbox and its only escape hatch (flatpak-spawn --host) requires
-        # a Flatpak-bus permission Satty doesn't ship with. Satty's built-in
-        # save-to-clipboard works inside the sandbox but the clipboard
-        # contents disappear the instant Satty exits, which is the bug we
-        # were just hitting.
+        # Clipboard handoff strategy: the HOST owns the clipboard, never
+        # Satty. We deliberately do NOT pass --copy-command: flatpak Satty
+        # has no wl-copy in its sandbox and its only escape hatch
+        # (flatpak-spawn --host) needs a Flatpak-bus permission Satty doesn't
+        # ship with. Satty's built-in save-to-clipboard works inside the
+        # sandbox but the clipboard is torn down the instant Satty exits —
+        # so on every exit path we instead make Satty write the PNG to
+        # out_path and copy that file from the host afterwards (wl-copy
+        # daemonizes and survives Satty + the popup tear-down).
+        #
+        # The catch the previous version missed: Satty's toolbar **Copy**
+        # button only does save-to-clipboard, NOT save-to-file. With
+        # --early-exit that closed Satty without ever writing out_path, so
+        # the host-side copy below was skipped and the user lost both the
+        # clipboard *and* the file — "it closes when I copy". --save-after-copy
+        # forces a copy to also write out_path, so Copy, Save, and Enter all
+        # leave a file for the host to pick up. Escape exits without saving
+        # (clean cancel: no out_path → host does nothing).
         cmd = [
             *satty,
             "--filename", crop_path,
             "--output-filename", out_path,
             "--actions-on-enter", "save-to-file,exit",
+            "--actions-on-escape", "exit",
+            "--save-after-copy",
             "--early-exit",
             "--initial-tool", "arrow",
         ]

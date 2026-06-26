@@ -303,10 +303,27 @@ def start() -> int:
     else:
         cmd = ["gpu-screen-recorder", *args]
 
+    # Capture gsr's output so we can surface *why* it failed instead of
+    # silently showing a HUD over a recording that never started.
+    gsr_log = open(LOG_PATH, "a")
+    gsr_log.write(f"\n--- gsr start {_dt.datetime.now().isoformat()} ---\ncmd: {' '.join(cmd)}\n")
+    gsr_log.flush()
     try:
-        proc = subprocess.Popen(cmd, start_new_session=True)
+        proc = subprocess.Popen(
+            cmd, start_new_session=True,
+            stdout=gsr_log, stderr=subprocess.STDOUT,
+        )
     except FileNotFoundError as e:
         notify("Recorder not installed", str(e))
+        return 1
+
+    # gpu-screen-recorder fails fast when it can't initialise (missing NVIDIA
+    # GL flatpak extension → "failed to load opengl", no capture backend, bad
+    # region, …). Give it a moment; if it has already exited, report the cause
+    # rather than launching a HUD over a dead recorder.
+    if _died_early(proc):
+        notify("Recording failed", _diagnose_failure())
+        logging.error("gsr exited early (rc=%s)", proc.returncode)
         return 1
 
     with open(PID_FILE, "w") as f:
@@ -320,6 +337,32 @@ def start() -> int:
 
     notify("Recording started", f"→ {out_path}")
     return 0
+
+
+def _died_early(proc: subprocess.Popen, grace: float = 2.0) -> bool:
+    """Return True if `proc` exited within `grace` seconds of starting."""
+    deadline = time.monotonic() + grace
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            return True
+        time.sleep(0.1)
+    return False
+
+
+def _diagnose_failure() -> str:
+    """Turn the tail of the gsr log into a one-line, actionable hint."""
+    try:
+        with open(LOG_PATH) as f:
+            tail = f.read()[-2000:]
+    except OSError:
+        tail = ""
+    if "failed to load opengl" in tail or "llvmpipe" in tail:
+        return ("GPU OpenGL unavailable in the recorder sandbox. On NVIDIA, "
+                "install the matching GL extension:\n"
+                "flatpak install flathub org.freedesktop.Platform.GL.nvidia-<driver>")
+    if "no capture backend" in tail or "failed to find monitor" in tail:
+        return "Recorder could not find a capture target (monitor/region)."
+    return "gpu-screen-recorder exited immediately — see /tmp/cosmic-capture-record.log"
 
 
 def get_monitor_origin(name: str) -> tuple[int, int]:

@@ -171,8 +171,57 @@ if $missing_capture; then
 fi
 
 # --- recorder (gpu-screen-recorder, flatpak system-wide) ------------------
+# Returns the scope ("system"/"user") gpu-screen-recorder is installed in, or
+# empty if absent.
+gsr_scope() {
+    if flatpak list --system --app 2>/dev/null | grep -q com.dec05eba.gpu_screen_recorder; then
+        echo system
+    elif flatpak list --user --app 2>/dev/null | grep -q com.dec05eba.gpu_screen_recorder; then
+        echo user
+    fi
+}
+
+# On NVIDIA the gpu-screen-recorder flatpak needs the GL driver extension that
+# matches the *host* kernel driver, otherwise EGL inside the sandbox falls back
+# to llvmpipe and gsr dies with "failed to load opengl" — Record silently does
+# nothing. flatpak does NOT pull this automatically for an already-installed
+# runtime, so install it explicitly into the same scope as the recorder.
+ensure_nvidia_gl() {
+    local scope="$1"
+    # Detect the running NVIDIA driver version (e.g. 580.159.03).
+    local ver=""
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        ver="$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1 | tr -d '[:space:]')"
+    fi
+    [[ -z "$ver" && -r /sys/module/nvidia/version ]] && ver="$(tr -d '[:space:]' < /sys/module/nvidia/version)"
+    [[ -z "$ver" ]] && return 0   # no NVIDIA driver loaded — nothing to do
+    local ext="org.freedesktop.Platform.GL.nvidia-${ver//./-}"
+    if flatpak list --"$scope" 2>/dev/null | grep -q "${ext}"; then
+        ok "NVIDIA GL extension present ($ext)"
+        return 0
+    fi
+    warn "NVIDIA driver $ver detected; matching flatpak GL extension missing."
+    warn "Without it the Record button captures nothing (sandbox falls back to software GL)."
+    local sudo_pfx=()
+    [[ "$scope" == system ]] && sudo_pfx=(sudo)
+    read -rp "Install $ext (--$scope) now? [Y/n] " ans
+    if [[ -z "$ans" || "$ans" =~ ^[Yy] ]]; then
+        "${sudo_pfx[@]}" flatpak remote-add --if-not-exists --"$scope" flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+        if "${sudo_pfx[@]}" flatpak install --"$scope" -y flathub "$ext"; then
+            ok "NVIDIA GL extension installed ($ext)"
+        else
+            warn "Could not install $ext automatically — install it manually:"
+            warn "    flatpak install --$scope flathub $ext"
+        fi
+    else
+        warn "Skipped — Record will not work on NVIDIA until you run:"
+        warn "    flatpak install --$scope flathub $ext"
+    fi
+}
+
 if command -v flatpak >/dev/null 2>&1; then
-    if ! flatpak list --system --app 2>/dev/null | grep -q com.dec05eba.gpu_screen_recorder; then
+    if [[ -z "$(gsr_scope)" ]]; then
         warn "gpu-screen-recorder flatpak (recommended for Record) not installed."
         warn "User installs are broken — must be system-wide."
         read -rp "Install com.dec05eba.gpu_screen_recorder system-wide? [y/N] " ans
@@ -184,6 +233,10 @@ if command -v flatpak >/dev/null 2>&1; then
     else
         ok "gpu-screen-recorder flatpak present"
     fi
+    # Whether freshly installed or pre-existing, make sure the NVIDIA GL
+    # extension is in place (no-op on AMD/Intel).
+    GSR_SCOPE="$(gsr_scope)"
+    [[ -n "$GSR_SCOPE" ]] && ensure_nvidia_gl "$GSR_SCOPE"
 else
     warn "flatpak not installed — Record button will not work without it."
     warn "  Install flatpak via your package manager, then re-run this installer."

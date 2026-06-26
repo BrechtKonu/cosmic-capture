@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Record produced nothing on NVIDIA.** The `gpu-screen-recorder` flatpak
+  needs the GL driver extension matching the *host* NVIDIA driver
+  (`org.freedesktop.Platform.GL.nvidia-<driver>`); flatpak does not pull it
+  automatically for an already-installed runtime. Without it, EGL inside the
+  sandbox falls back to llvmpipe and gsr dies with `failed to load opengl`,
+  so every capture mode silently failed. `install.sh` now detects the running
+  NVIDIA driver and installs the matching GL extension into the same scope as
+  the recorder (no-op on AMD/Intel). `record.py` additionally captures gsr's
+  output, detects an immediate exit, and reports the cause (with the GL hint)
+  instead of showing a recording HUD over a dead recorder.
+- **Annotate lost the result when you clicked Copy.** Satty's toolbar Copy
+  button only does `save-to-clipboard`, not `save-to-file`; with `--early-exit`
+  that closed Satty without writing the output file, so the host-side clipboard
+  copy was skipped — you ended up with nothing on the clipboard *and* no saved
+  PNG ("it closes when I copy/save"). `annotate.py` now passes
+  `--save-after-copy` so Copy, Save, and Enter all leave a file on disk for the
+  host to copy to the clipboard (the host owns the clipboard so it survives
+  Satty's exit), plus `--actions-on-escape exit` for a clean cancel.
+
 ## 0.3.0 — 2026-05-08
 
 ### Added
